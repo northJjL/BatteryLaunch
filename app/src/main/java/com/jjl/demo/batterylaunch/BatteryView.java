@@ -57,16 +57,16 @@ public class BatteryView extends View{
 	private int mFixTime = 2500;//固定时间最小值
 	private float mPapawUpPathSize = 220f; // 气泡可上升的高度
 
-	private float [] curY= new float[mBubbleNum];//当前y的位置
-	private float [] curX= new float[mBubbleNum];//当前x的位置
+	private float [] curY= new float[mBubbleNum];//当前圆圈y的位置
+	private float [] curX= new float[mBubbleNum];//当前圆圈x的位置
 	private int [] mRadius= new int[mBubbleNum];//圆圈的半径
 	private int [] mAlpha= new int[mBubbleNum];//圆圈的透明度
 	private float [] mXMove= new float[mBubbleNum];//x的移动速度
 //	private TimeCount [] mTimeCount= new TimeCount[mBubbleNum];//计时器
 	private int [] mTime= new int[mBubbleNum];//上升时长
 
-	private AnimatorUpdate [] mAnimatorUpdate= new AnimatorUpdate[mBubbleNum];//上升时长
-	private float [] mXLimit= new float[mBubbleNum];//X限制的位置
+	private AnimatorUpdate [] mAnimatorUpdate= new AnimatorUpdate[mBubbleNum];//ValueAnimator
+	private float [] mXLimit= new float[mBubbleNum];//圆圈X轴限制
 
 	public BatteryView(Context context) {
 		super(context);
@@ -238,6 +238,14 @@ public class BatteryView extends View{
 		}
 	}
 
+	@Override
+	protected void onDetachedFromWindow() {
+		super.onDetachedFromWindow();
+		isRunning = false;
+		handler.removeCallbacksAndMessages(null);
+		handler = null;
+	}
+
 	private Handler handler = new Handler() {
 		public void handleMessage(android.os.Message msg) {
 			create(msg.what);
@@ -275,7 +283,7 @@ public class BatteryView extends View{
 			}
 
 			curY[type] = mBatteryRect.bottom + mPapawUpPathSize - (mPapawUpPathSize * value);
-			if(value == 1f){
+			if(value == 1f && isRunning){
 				handler.sendEmptyMessage(type);
 			}
 			invalidate();
