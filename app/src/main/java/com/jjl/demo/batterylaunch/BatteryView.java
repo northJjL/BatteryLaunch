@@ -74,7 +74,11 @@ public class BatteryView extends View{
 	private float [] mXLimit= new float[mBubbleNum];//圆圈X轴限制
 	private int mWidthSize = 0;//布局给予宽度
 	private int mHeightSize = 0;//布局给予高度
-	private int MeasureMode = 0;//测量模式 0、默认值 1、测高 2、测宽 3、测宽高
+	private int MeasureMode = -1;//测量模式 0、默认值 1、测高 2、测宽 3、测宽高
+	private int mPaddingBottom;
+	private int mPaddingTop;
+	private int mPaddingLeft;
+	private int mPaddingRight;
 
 	public BatteryView(Context context) {
 		super(context);
@@ -92,6 +96,7 @@ public class BatteryView extends View{
 	}
 
 	private void initBattery(Context context ,AttributeSet attrs) {
+		this.context = context;
 		if(attrs != null){
 			TypedArray typedArray = context.obtainStyledAttributes(attrs, R.styleable.BatteryView);
 			int bubbleNumber = typedArray.getInt(R.styleable.BatteryView_bubbleNumber,-1);
@@ -123,8 +128,13 @@ public class BatteryView extends View{
 
 			float papawUpPathSize = typedArray.getFloat(R.styleable.BatteryView_papawUpPathSize,-1f);
 			if(papawUpPathSize!=-1f)mPapawUpPathSize =papawUpPathSize;
+
+            typedArray.recycle();
 		}
-		this.context = context;
+		mPaddingBottom = getPaddingBottom();
+		mPaddingTop = getPaddingTop();
+		mPaddingLeft = getPaddingLeft();
+		mPaddingRight = getPaddingRight();
 
 		//初始化 泡泡参数
 		initBubbleParameter();
@@ -136,8 +146,8 @@ public class BatteryView extends View{
 		mRandom = new Random();
 
 		//测量的宽高
-		MeasureBatteryWidth = (int) (mBatteryWidth + mBatteryStroke);
-		MeasureBatteryHeight = (int) (mBatteryHeight + (mCapHeight - mBatteryStroke / 2) + mPapawUpPathSize);
+		MeasureBatteryWidth = (int) (mBatteryWidth + mBatteryStroke) ;
+		MeasureBatteryHeight = (int) (mBatteryHeight + (mCapHeight + mBatteryStroke*3/2) +mPapawUpPathSize );
 
 		//初始化 笔
 		mPaint = new Paint();
@@ -200,38 +210,40 @@ public class BatteryView extends View{
 
 	@Override
 	protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-		super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 		mWidthSize = MeasureSpec.getSize(widthMeasureSpec);
 		int WidthMode = MeasureSpec.getMode(widthMeasureSpec);
 		mHeightSize = MeasureSpec.getSize(heightMeasureSpec);
 		int HeightMode = MeasureSpec.getMode(heightMeasureSpec);
+		// TODO WidthMode 不知什么原因，布局是wrap_content的情况下，
+		// TODO 会在第二次赋值的时候spec返回mode为EXACTLY ,MeasureMode=1存在问题
 		if(WidthMode == MeasureSpec.AT_MOST && HeightMode == MeasureSpec.AT_MOST){
 			MeasureMode = 0;
-			setMeasuredDimension(MeasureBatteryWidth , MeasureBatteryHeight);
+			setMeasuredDimension(MeasureBatteryWidth + mPaddingRight + mPaddingLeft, MeasureBatteryHeight + mPaddingTop + mPaddingBottom);
 		}else if(WidthMode == MeasureSpec.AT_MOST ){
 			MeasureMode = 1;
-			setMeasuredDimension(MeasureBatteryWidth, mHeightSize);
+			setMeasuredDimension(MeasureBatteryWidth + mPaddingRight + mPaddingLeft, mHeightSize);
 		}else if(HeightMode == MeasureSpec.AT_MOST ){
 			MeasureMode = 2;
-			setMeasuredDimension(mWidthSize, MeasureBatteryHeight);
+			setMeasuredDimension(mWidthSize, MeasureBatteryHeight + mPaddingTop + mPaddingBottom);
 		}else{
 			MeasureMode = 3;
 			setMeasuredDimension(mWidthSize, mHeightSize);
 		}
 	}
 
+
 	@Override
 	protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
-		super.onLayout(changed, left, top, right, bottom);
+		super.onLayout(changed, left , top, right, bottom);
 	}
 
 	@Override
 	protected void onDraw(Canvas canvas) {
-		super.onDraw(canvas);
 		canvas.save();
 		//绘制大小
-		float heightScale = (float)mHeightSize/MeasureBatteryHeight;
-		float widthScale = (float)mWidthSize/MeasureBatteryWidth;
+		float heightScale = (float)(mHeightSize - mPaddingTop - mPaddingBottom)/MeasureBatteryHeight;
+		float widthScale = (float)(mWidthSize - mPaddingRight - mPaddingLeft)/MeasureBatteryWidth;
+		canvas.translate(mPaddingLeft ,mPaddingTop);
 		switch (MeasureMode){
 			case 0:
 				canvas.scale(1, 1);
@@ -310,7 +322,7 @@ public class BatteryView extends View{
 			mPower = 10;
 		}
 		mPowerRect.top = mBatteryRect.top + mBatteryStroke/2 +mPowerPadding + mPowerHeight * ((100f - mPower) / 100f);
-		if (mPower >= 100) {
+		if (mPower > 100) {
 			stopAnim();
 		} else {
 			startAnim();
@@ -375,7 +387,7 @@ public class BatteryView extends View{
 				mAlpha[type] -= 0.3f;
 			}
 			//集合
-			if(value > 0.8f){
+			if(value > 0.85f){
 				changeOrientation(xLeftLimitGather, xRightLimitGather);
 			}else{
 				changeOrientation(xLeftLimit, xRightLimit);
