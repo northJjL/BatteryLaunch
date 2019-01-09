@@ -75,7 +75,6 @@ public class BatteryView extends View{
 	private int mWidthSize = 0;//布局给予宽度
 	private int mHeightSize = 0;//布局给予高度
 	private int MeasureMode = 0;//测量模式 0、默认值 1、测高 2、测宽 3、测宽高
-	private DecimalFormat mDf;
 
 	public BatteryView(Context context) {
 		super(context);
@@ -208,7 +207,7 @@ public class BatteryView extends View{
 		int HeightMode = MeasureSpec.getMode(heightMeasureSpec);
 		if(WidthMode == MeasureSpec.AT_MOST && HeightMode == MeasureSpec.AT_MOST){
 			MeasureMode = 0;
-			setMeasuredDimension(MeasureBatteryWidth, MeasureBatteryHeight);
+			setMeasuredDimension(MeasureBatteryWidth , MeasureBatteryHeight);
 		}else if(WidthMode == MeasureSpec.AT_MOST ){
 			MeasureMode = 1;
 			setMeasuredDimension(MeasureBatteryWidth, mHeightSize);
@@ -311,7 +310,7 @@ public class BatteryView extends View{
 			mPower = 10;
 		}
 		mPowerRect.top = mBatteryRect.top + mBatteryStroke/2 +mPowerPadding + mPowerHeight * ((100f - mPower) / 100f);
-		if (mPower > 100) {
+		if (mPower >= 100) {
 			stopAnim();
 		} else {
 			startAnim();
@@ -384,7 +383,14 @@ public class BatteryView extends View{
 
 			curY[type] = mBatteryRect.bottom + mPapawUpPathSize - (mPapawUpPathSize * value);
 			if(value == 1f && isRunning){
-				handler.sendEmptyMessage(type);
+//				handler.sendEmptyMessage(type);
+				post(new Runnable() {
+					@Override
+					public void run() {
+						create(type);
+						invalidate();
+					}
+				});
 			}
 			invalidate();
 		}
@@ -515,10 +521,4 @@ public class BatteryView extends View{
 		final float scale = context.getResources().getDisplayMetrics().density;
 		return  (dpValue / 3.0f *  scale + 0.5f);
 	}
-
-	public static int dp2px(Context context, float dipValue) {
-		final float scale = context.getResources().getDisplayMetrics().density;
-		return (int) (dipValue * scale + 0.5f);
-	}
-
 }
