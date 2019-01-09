@@ -1,9 +1,12 @@
 package com.jjl.demo.batterylaunch;
 
+import java.nio.file.attribute.AttributeView;
+import java.text.DecimalFormat;
 import java.util.Random;
 
 import android.animation.ValueAnimator;
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -11,7 +14,9 @@ import android.graphics.Paint.Style;
 import android.graphics.RectF;
 import android.os.CountDownTimer;
 import android.os.Handler;
+import android.support.annotation.Nullable;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.View;
 import android.view.animation.DecelerateInterpolator;
 
@@ -47,14 +52,14 @@ public class BatteryView extends View{
 
 	private Random mRandom;
 	private int mBubbleNum = 5;//圆圈的数量
-	private int mFixSize  = 9;//圆圈固定最小值
-	private int mRandomSize  = 9;//圆圈随机的范围值
-	private int mRandomMoveX = 80;//随机移动x的范围值(/100)
+	private int mBubbleFixSize = 9;//圆圈固定最小值
+	private int mBubbleRandomSize = 9;//圆圈随机的范围值
 	private int mFixMoveX = 60;//固定移动x的最小值(/100)
-	private int mRandomAlpha = 80;//随机透明度
+	private int mRandomMoveX = 80;//随机移动x的范围值(/100)
 	private int mFixAlpha = 120;//固定最小透明度
-	private int mRandomTime = 4500;//随机时间值
+	private int mRandomAlpha = 80;//随机透明度
 	private int mFixTime = 2500;//固定时间最小值
+	private int mRandomTime = 4500;//随机时间值
 	private float mPapawUpPathSize = 220f; // 气泡可上升的高度
 
 	private float [] curY= new float[mBubbleNum];//当前圆圈y的位置
@@ -67,14 +72,64 @@ public class BatteryView extends View{
 
 	private AnimatorUpdate [] mAnimatorUpdate= new AnimatorUpdate[mBubbleNum];//ValueAnimator
 	private float [] mXLimit= new float[mBubbleNum];//圆圈X轴限制
+	private int mWidthSize = 0;//布局给予宽度
+	private int mHeightSize = 0;//布局给予高度
+	private int MeasureMode = 0;//测量模式 0、默认值 1、测高 2、测宽 3、测宽高
+	private DecimalFormat mDf;
 
 	public BatteryView(Context context) {
 		super(context);
+		initBattery(context ,null);
 	}
 
 	public BatteryView(Context context, AttributeSet attrs) {
 		super(context, attrs);
+		initBattery(context ,attrs);
+	}
+
+	public BatteryView(Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
+		super(context, attrs, defStyleAttr);
+		initBattery(context ,attrs);
+	}
+
+	private void initBattery(Context context ,AttributeSet attrs) {
+		if(attrs != null){
+			TypedArray typedArray = context.obtainStyledAttributes(attrs, R.styleable.BatteryView);
+			int bubbleNumber = typedArray.getInt(R.styleable.BatteryView_bubbleNumber,-1);
+			if(bubbleNumber!=-1) mBubbleNum =bubbleNumber;
+
+			int bubbleFixSize = typedArray.getInt(R.styleable.BatteryView_bubbleFixSize,-1);
+			if(bubbleFixSize!=-1)mBubbleFixSize =bubbleFixSize;
+
+			int bubbleRandomSize = typedArray.getInt(R.styleable.BatteryView_bubbleRandomSize,-1);
+			if(bubbleRandomSize!=-1)mBubbleRandomSize =bubbleRandomSize;
+
+			int fixMoveX = typedArray.getInt(R.styleable.BatteryView_fixMoveX,-1);
+			if(fixMoveX!=-1)mFixMoveX =fixMoveX;
+
+			int randomMoveX = typedArray.getInt(R.styleable.BatteryView_randomMoveX,-1);
+			if(randomMoveX!=-1)mRandomMoveX =randomMoveX;
+
+			int fixAlpha = typedArray.getInt(R.styleable.BatteryView_fixAlpha,-1);
+			if(fixAlpha!=-1)mFixAlpha =fixAlpha;
+
+			int randomAlpha = typedArray.getInt(R.styleable.BatteryView_randomAlpha,-1);
+			if(randomAlpha!=-1)mRandomAlpha =randomAlpha;
+
+			int fixTime = typedArray.getInt(R.styleable.BatteryView_fixTime,-1);
+			if(fixTime!=-1)mFixTime =fixTime;
+
+			int randomTime = typedArray.getInt(R.styleable.BatteryView_randomTime,-1);
+			if(randomTime!=-1)mRandomTime =randomTime;
+
+			float papawUpPathSize = typedArray.getFloat(R.styleable.BatteryView_papawUpPathSize,-1f);
+			if(papawUpPathSize!=-1f)mPapawUpPathSize =papawUpPathSize;
+		}
 		this.context = context;
+
+		//初始化 泡泡参数
+		initBubbleParameter();
+
 		// 屏幕密度适配
 		initBatterySize();
 
@@ -111,6 +166,18 @@ public class BatteryView extends View{
 		mPowerRect.right = mBatteryRect.right - mBatteryStroke/2 - mPowerPadding ;
 	}
 
+	private void initBubbleParameter() {
+		curY= new float[mBubbleNum];//当前圆圈y的位置
+		curX= new float[mBubbleNum];//当前圆圈x的位置
+		mRadius= new int[mBubbleNum];//圆圈的半径
+		mAlpha= new int[mBubbleNum];//圆圈的透明度
+		mXMove= new float[mBubbleNum];//x的移动速度
+		mTime= new int[mBubbleNum];//上升时长
+//		mTimeCount= new TimeCount[mBubbleNum];//计时器
+		mAnimatorUpdate= new AnimatorUpdate[mBubbleNum];//ValueAnimator
+		mXLimit= new float[mBubbleNum];//圆圈X轴限制
+	}
+
 	/**
 	 * 按3.0密度的大小显示电池
 	 */
@@ -126,8 +193,8 @@ public class BatteryView extends View{
 		mCapRadius = performDensityChange(context,mCapRadius);
 		mBatteryRadius = performDensityChange(context,mBatteryRadius);
 		mPowerRadius = performDensityChange(context,mPowerRadius);
-		mFixSize = (int) performDensityChange(context,mFixSize);
-		mRandomSize = (int) performDensityChange(context,mRandomSize);
+		mBubbleFixSize = (int) performDensityChange(context, mBubbleFixSize);
+		mBubbleRandomSize = (int) performDensityChange(context, mBubbleRandomSize);
 		mRandomMoveX = (int) performDensityChange(context, mRandomMoveX);
 		mFixMoveX = (int) performDensityChange(context, mFixMoveX);
 	}
@@ -135,7 +202,23 @@ public class BatteryView extends View{
 	@Override
 	protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
 		super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-		setMeasuredDimension(MeasureBatteryWidth, MeasureBatteryHeight);
+		mWidthSize = MeasureSpec.getSize(widthMeasureSpec);
+		int WidthMode = MeasureSpec.getMode(widthMeasureSpec);
+		mHeightSize = MeasureSpec.getSize(heightMeasureSpec);
+		int HeightMode = MeasureSpec.getMode(heightMeasureSpec);
+		if(WidthMode == MeasureSpec.AT_MOST && HeightMode == MeasureSpec.AT_MOST){
+			MeasureMode = 0;
+			setMeasuredDimension(MeasureBatteryWidth, MeasureBatteryHeight);
+		}else if(WidthMode == MeasureSpec.AT_MOST ){
+			MeasureMode = 1;
+			setMeasuredDimension(MeasureBatteryWidth, mHeightSize);
+		}else if(HeightMode == MeasureSpec.AT_MOST ){
+			MeasureMode = 2;
+			setMeasuredDimension(mWidthSize, MeasureBatteryHeight);
+		}else{
+			MeasureMode = 3;
+			setMeasuredDimension(mWidthSize, mHeightSize);
+		}
 	}
 
 	@Override
@@ -147,6 +230,23 @@ public class BatteryView extends View{
 	protected void onDraw(Canvas canvas) {
 		super.onDraw(canvas);
 		canvas.save();
+		//绘制大小
+		float heightScale = (float)mHeightSize/MeasureBatteryHeight;
+		float widthScale = (float)mWidthSize/MeasureBatteryWidth;
+		switch (MeasureMode){
+			case 0:
+				canvas.scale(1, 1);
+				break;
+			case 1:
+				canvas.scale(1, heightScale);
+				break;
+			case 2:
+				canvas.scale(widthScale, 1);
+				break;
+			case 3:
+				canvas.scale(widthScale ,heightScale);
+				break;
+		}
 
 		// 绘制电池的边框
 		mPaint.setColor(Color.GRAY);
@@ -182,7 +282,7 @@ public class BatteryView extends View{
 	}
 
 	private void create(int bubbleNum) {
-		mRadius[bubbleNum] = mRandom.nextInt(mRandomSize) + mFixSize;
+		mRadius[bubbleNum] = mRandom.nextInt(mBubbleRandomSize) + mBubbleFixSize;
 		mXMove[bubbleNum] = (mRandom.nextInt(mRandomMoveX) + mFixMoveX) /100f;
 		mAlpha[bubbleNum] = mRandom.nextInt(mRandomAlpha) + mFixAlpha;
 		mXLimit[bubbleNum] = mRandom.nextInt(120) + MeasureBatteryWidth - 160;
@@ -211,7 +311,7 @@ public class BatteryView extends View{
 			mPower = 10;
 		}
 		mPowerRect.top = mBatteryRect.top + mBatteryStroke/2 +mPowerPadding + mPowerHeight * ((100f - mPower) / 100f);
-		if (mPower >= 100) {
+		if (mPower > 100) {
 			stopAnim();
 		} else {
 			startAnim();
@@ -414,6 +514,11 @@ public class BatteryView extends View{
 	public static float performDensityChange(Context context, float dpValue) {
 		final float scale = context.getResources().getDisplayMetrics().density;
 		return  (dpValue / 3.0f *  scale + 0.5f);
+	}
+
+	public static int dp2px(Context context, float dipValue) {
+		final float scale = context.getResources().getDisplayMetrics().density;
+		return (int) (dipValue * scale + 0.5f);
 	}
 
 }

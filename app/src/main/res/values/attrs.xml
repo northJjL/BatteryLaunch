@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="BatteryView">
+        <attr name="bubbleNumber" format="integer" />
+        <attr name="bubbleFixSize" format="integer" />
+        <attr name="bubbleRandomSize" format="integer" />
+        <attr name="fixMoveX" format="integer" />
+        <attr name="randomMoveX" format="integer" />
+        <attr name="fixAlpha" format="integer" />
+        <attr name="randomAlpha" format="integer" />
+        <attr name="fixTime" format="integer" />
+        <attr name="randomTime" format="integer" />
+        <attr name="papawUpPathSize" format="float" />
+    </declare-styleable>
+</resources>
