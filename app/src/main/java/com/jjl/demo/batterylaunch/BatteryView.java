@@ -18,6 +18,7 @@ import android.support.annotation.Nullable;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.animation.DecelerateInterpolator;
 
 public class BatteryView extends View{
@@ -214,8 +215,22 @@ public class BatteryView extends View{
 		int WidthMode = MeasureSpec.getMode(widthMeasureSpec);
 		mHeightSize = MeasureSpec.getSize(heightMeasureSpec);
 		int HeightMode = MeasureSpec.getMode(heightMeasureSpec);
-		// TODO WidthMode 不知什么原因，布局是wrap_content的情况下，
-		// TODO 会在第二次赋值的时候spec返回mode为EXACTLY ,MeasureMode=1存在问题
+		ViewGroup.LayoutParams layoutParams = getLayoutParams();
+		if(layoutParams.width == ViewGroup.LayoutParams.WRAP_CONTENT && layoutParams.height == ViewGroup.LayoutParams.WRAP_CONTENT){
+			MeasureMode = 0;
+			setMeasuredDimension(MeasureBatteryWidth + mPaddingRight + mPaddingLeft, MeasureBatteryHeight + mPaddingTop + mPaddingBottom);
+		}else if(layoutParams.width == ViewGroup.LayoutParams.WRAP_CONTENT ){
+			MeasureMode = 1;
+			setMeasuredDimension(MeasureBatteryWidth + mPaddingRight + mPaddingLeft, mHeightSize);
+		}else if(layoutParams.height == ViewGroup.LayoutParams.WRAP_CONTENT ){
+			MeasureMode = 2;
+			setMeasuredDimension(mWidthSize, MeasureBatteryHeight + mPaddingTop + mPaddingBottom);
+		}else{
+			MeasureMode = 3;
+			setMeasuredDimension(mWidthSize, mHeightSize);
+		}
+		//WidthMode 在第二次传值的时候返回MeasureSpec.EXACTLY, 过程中赋值了宽度
+/*
 		if(WidthMode == MeasureSpec.AT_MOST && HeightMode == MeasureSpec.AT_MOST){
 			MeasureMode = 0;
 			setMeasuredDimension(MeasureBatteryWidth + mPaddingRight + mPaddingLeft, MeasureBatteryHeight + mPaddingTop + mPaddingBottom);
@@ -229,6 +244,7 @@ public class BatteryView extends View{
 			MeasureMode = 3;
 			setMeasuredDimension(mWidthSize, mHeightSize);
 		}
+*/
 	}
 
 
@@ -322,7 +338,7 @@ public class BatteryView extends View{
 			mPower = 10;
 		}
 		mPowerRect.top = mBatteryRect.top + mBatteryStroke/2 +mPowerPadding + mPowerHeight * ((100f - mPower) / 100f);
-		if (mPower > 100) {
+		if (mPower >= 100) {
 			stopAnim();
 		} else {
 			startAnim();
