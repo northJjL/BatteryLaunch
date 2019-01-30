@@ -53,13 +53,13 @@ public class BatteryView extends View{
 
 	private Random mRandom;
 	private int mBubbleNum = 5;//圆圈的数量
-	private int mBubbleFixSize = 9;//圆圈固定最小值
+	private int mBubbleFixSize = 10;//圆圈固定最小值
 	private int mBubbleRandomSize = 9;//圆圈随机的范围值
-	private int mFixMoveX = 60;//固定移动x的最小值(/100)
+	private int mFixMoveX = 40;//固定移动x的最小值(/100)
 	private int mRandomMoveX = 80;//随机移动x的范围值(/100)
 	private int mFixAlpha = 120;//固定最小透明度
 	private int mRandomAlpha = 80;//随机透明度
-	private int mFixTime = 2500;//固定时间最小值
+	private int mFixTime = 3200;//固定时间最小值
 	private int mRandomTime = 4500;//随机时间值
 	private float mPapawUpPathSize = 220f; // 气泡可上升的高度
 
@@ -323,7 +323,7 @@ public class BatteryView extends View{
 		mAnimatorUpdate[bubbleNum] = new AnimatorUpdate(bubbleNum);
 		ValueAnimator animator = ValueAnimator.ofFloat(0f, 1f);
 		//减速插值器
-		animator.setInterpolator(new DecelerateInterpolator());
+//		animator.setInterpolator(new DecelerateInterpolator());
 		animator.addUpdateListener(mAnimatorUpdate[bubbleNum]);
 		animator.setDuration(mTime[bubbleNum]);
 		animator.start();
@@ -340,6 +340,7 @@ public class BatteryView extends View{
 		mPowerRect.top = mBatteryRect.top + mBatteryStroke/2 +mPowerPadding + mPowerHeight * ((100f - mPower) / 100f);
 		if (mPower >= 100) {
 			stopAnim();
+//			startAnim();
 		} else {
 			startAnim();
 		}
@@ -410,7 +411,7 @@ public class BatteryView extends View{
 			}
 
 			curY[type] = mBatteryRect.bottom + mPapawUpPathSize - (mPapawUpPathSize * value);
-			if(value == 1f && isRunning){
+			if(value == 1.0f && isRunning){
 //				handler.sendEmptyMessage(type);
 				post(new Runnable() {
 					@Override
@@ -427,9 +428,9 @@ public class BatteryView extends View{
 		 * 根据限制的x具体，判断该移动的距离
 		 */
 		private void changeOrientation(float xLeftLimit, float xRightLimit) {
-			if(curX[type] <  xLeftLimit){
+			if(curX[type] <=  xLeftLimit){
                 isRight = true;
-            }else if(curX[type] > xRightLimit){
+            }else if(curX[type] >= xRightLimit){
                 isRight = false;
             }
 			if(isRight){
