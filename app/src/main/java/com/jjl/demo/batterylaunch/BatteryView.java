@@ -1,5 +1,6 @@
 package com.jjl.demo.batterylaunch;
 
+import java.math.BigDecimal;
 import java.nio.file.attribute.AttributeView;
 import java.text.DecimalFormat;
 import java.util.Random;
@@ -20,6 +21,7 @@ import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.DecelerateInterpolator;
+import android.view.animation.LinearInterpolator;
 
 public class BatteryView extends View{
 
@@ -324,6 +326,7 @@ public class BatteryView extends View{
 		ValueAnimator animator = ValueAnimator.ofFloat(0f, 1f);
 		//减速插值器
 //		animator.setInterpolator(new DecelerateInterpolator());
+		animator.setInterpolator(new LinearInterpolator());
 		animator.addUpdateListener(mAnimatorUpdate[bubbleNum]);
 		animator.setDuration(mTime[bubbleNum]);
 		animator.start();
@@ -400,8 +403,8 @@ public class BatteryView extends View{
 			float xLeftLimitGather = MeasureBatteryWidth/2 - mXLimit[type]/4;
 			float xRightLimitGather = MeasureBatteryWidth/2 + mXLimit[type]/4;
 			//透明度变化
-			if(value > 0.5f && mAlpha[type] > 0){
-				mAlpha[type] -= 0.3f;
+			if(value > 0.5f && mAlpha[type] > 15){
+				mAlpha[type] -= 0.2f;
 			}
 			//集合
 			if(value > 0.85f){
@@ -428,11 +431,16 @@ public class BatteryView extends View{
 		 * 根据限制的x具体，判断该移动的距离
 		 */
 		private void changeOrientation(float xLeftLimit, float xRightLimit) {
-			if(curX[type] <=  xLeftLimit){
+			if(curX[type] <  (xLeftLimit + 0.5f)){
                 isRight = true;
-            }else if(curX[type] >= xRightLimit){
+            }else if(curX[type] > (xRightLimit - 0.5f)){
                 isRight = false;
             }
+			/*if(new BigDecimal( curX[type]).compareTo(new BigDecimal(xLeftLimit)) == -1){
+				isRight = true;
+			}else if(new BigDecimal( curX[type]).compareTo(new BigDecimal(xRightLimit)) == 1){
+				isRight = false;
+			}*/
 			if(isRight){
                 curX[type] += mXMove[type];
             }else{
