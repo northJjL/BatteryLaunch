@@ -1,10 +1,5 @@
 package com.jjl.demo.batterylaunch;
 
-import java.math.BigDecimal;
-import java.nio.file.attribute.AttributeView;
-import java.text.DecimalFormat;
-import java.util.Random;
-
 import android.animation.ValueAnimator;
 import android.content.Context;
 import android.content.res.TypedArray;
@@ -13,15 +8,13 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Paint.Style;
 import android.graphics.RectF;
-import android.os.CountDownTimer;
-import android.os.Handler;
 import android.support.annotation.Nullable;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.animation.DecelerateInterpolator;
 import android.view.animation.LinearInterpolator;
+
+import java.util.Random;
 
 public class BatteryView extends View{
 
@@ -70,10 +63,10 @@ public class BatteryView extends View{
 	private int [] mRadius= new int[mBubbleNum];//圆圈的半径
 	private int [] mAlpha= new int[mBubbleNum];//圆圈的透明度
 	private float [] mXMove= new float[mBubbleNum];//x的移动速度
-//	private TimeCount [] mTimeCount= new TimeCount[mBubbleNum];//计时器
 	private int [] mTime= new int[mBubbleNum];//上升时长
 
-	private AnimatorUpdate [] mAnimatorUpdate= new AnimatorUpdate[mBubbleNum];//ValueAnimator
+	private long [] mValueSaveTime = new long[mBubbleNum];//停止动画保存的状态
+	private ValueAnimator [] mValueAnimator= new ValueAnimator[mBubbleNum];//Value属性动画
 	private float [] mXLimit= new float[mBubbleNum];//圆圈X轴限制
 	private int mWidthSize = 0;//布局给予宽度
 	private int mHeightSize = 0;//布局给予高度
@@ -185,8 +178,8 @@ public class BatteryView extends View{
 		mAlpha= new int[mBubbleNum];//圆圈的透明度
 		mXMove= new float[mBubbleNum];//x的移动速度
 		mTime= new int[mBubbleNum];//上升时长
-//		mTimeCount= new TimeCount[mBubbleNum];//计时器
-		mAnimatorUpdate= new AnimatorUpdate[mBubbleNum];//ValueAnimator
+		mValueAnimator = new ValueAnimator[mBubbleNum];
+		mValueSaveTime = new long[mBubbleNum];
 		mXLimit= new float[mBubbleNum];//圆圈X轴限制
 	}
 
@@ -311,25 +304,25 @@ public class BatteryView extends View{
 	}
 
 	private void create(int bubbleNum) {
-		mRadius[bubbleNum] = mRandom.nextInt(mBubbleRandomSize) + mBubbleFixSize;
-		mXMove[bubbleNum] = (mRandom.nextInt(mRandomMoveX) + mFixMoveX) /100f;
-		mAlpha[bubbleNum] = mRandom.nextInt(mRandomAlpha) + mFixAlpha;
-		mXLimit[bubbleNum] = mRandom.nextInt(120) + MeasureBatteryWidth - 160;
-		mTime[bubbleNum] = mRandom.nextInt(mRandomTime) + mFixTime;
-		curX[bubbleNum] = MeasureBatteryWidth/2;
-		curY[bubbleNum] = mBatteryRect.bottom + mPapawUpPathSize;
-//		if(mTimeCount[bubbleNum] != null)
-//			mTimeCount[bubbleNum].cancel();
-//		mTimeCount[bubbleNum]  = new TimeCount(mTime[bubbleNum] , 50, bubbleNum);
-//		mTimeCount[bubbleNum].start();
-		mAnimatorUpdate[bubbleNum] = new AnimatorUpdate(bubbleNum);
-		ValueAnimator animator = ValueAnimator.ofFloat(0f, 1f);
-		//减速插值器
-//		animator.setInterpolator(new DecelerateInterpolator());
-		animator.setInterpolator(new LinearInterpolator());
-		animator.addUpdateListener(mAnimatorUpdate[bubbleNum]);
-		animator.setDuration(mTime[bubbleNum]);
-		animator.start();
+		if(mValueAnimator[bubbleNum] != null && mValueSaveTime[bubbleNum] != 0){
+			mValueAnimator[bubbleNum] .start();
+			mValueAnimator[bubbleNum].setCurrentPlayTime(mValueSaveTime[bubbleNum]);
+		}else{
+			mRadius[bubbleNum] = mRandom.nextInt(mBubbleRandomSize) + mBubbleFixSize;
+			mXMove[bubbleNum] = (mRandom.nextInt(mRandomMoveX) + mFixMoveX) /100f;
+			mAlpha[bubbleNum] = mRandom.nextInt(mRandomAlpha) + mFixAlpha;
+			mXLimit[bubbleNum] = mRandom.nextInt(120) + MeasureBatteryWidth - 160;
+			mTime[bubbleNum] = mRandom.nextInt(mRandomTime) + mFixTime;
+			curX[bubbleNum] = MeasureBatteryWidth/2;
+			curY[bubbleNum] = mBatteryRect.bottom + mPapawUpPathSize;
+			mValueAnimator[bubbleNum]  = ValueAnimator.ofFloat(0f, 1f);
+			//减速插值器
+//			animator.setInterpolator(new DecelerateInterpolator());
+			mValueAnimator[bubbleNum] .setInterpolator(new LinearInterpolator());
+			mValueAnimator[bubbleNum] .addUpdateListener(new AnimatorUpdate(bubbleNum));
+			mValueAnimator[bubbleNum] .setDuration(mTime[bubbleNum]);
+			mValueAnimator[bubbleNum] .start();
+		}
 	}
 
 	public void setPower(float power) {
@@ -343,7 +336,6 @@ public class BatteryView extends View{
 		mPowerRect.top = mBatteryRect.top + mBatteryStroke/2 +mPowerPadding + mPowerHeight * ((100f - mPower) / 100f);
 		if (mPower >= 100) {
 			stopAnim();
-//			startAnim();
 		} else {
 			startAnim();
 		}
@@ -362,9 +354,6 @@ public class BatteryView extends View{
 	public void stopAnim() {
 		if (isRunning) {
 			isRunning = false;
-//			for (int i  = 0 ; i < mBubbleNum ; i++){
-//				mTimeCount[i].cancel();
-//			}
 			invalidate();
 		}
 	}
@@ -373,30 +362,27 @@ public class BatteryView extends View{
 	protected void onDetachedFromWindow() {
 		super.onDetachedFromWindow();
 		isRunning = false;
-		handler.removeCallbacksAndMessages(null);
-		handler = null;
 	}
-
-	private Handler handler = new Handler() {
-		public void handleMessage(android.os.Message msg) {
-			create(msg.what);
-			invalidate();
-		};
-	};
 
 	class AnimatorUpdate implements ValueAnimator.AnimatorUpdateListener {
 
-		private final int type;
+		private int type;
 		private boolean isRight = true;
 
 		public AnimatorUpdate(int type) {
 			this.type = type;
 			//初始化方向
-			this.isRight = type % 2==0;
+			this.isRight = mRandom.nextInt(2) ==0;
 		}
 
 		@Override
 		public void onAnimationUpdate(ValueAnimator animation) {
+			if(!isRunning){
+				mValueSaveTime[type] = mValueAnimator[type].getCurrentPlayTime();
+				mValueAnimator[type].cancel();
+				return;
+			}
+
 			float value = (float) animation.getAnimatedValue();
 			float xLeftLimit = MeasureBatteryWidth/2 - mXLimit[type]/2;
 			float xRightLimit = MeasureBatteryWidth/2 + mXLimit[type]/2;
@@ -414,11 +400,11 @@ public class BatteryView extends View{
 			}
 
 			curY[type] = mBatteryRect.bottom + mPapawUpPathSize - (mPapawUpPathSize * value);
-			if(value == 1.0f && isRunning){
-//				handler.sendEmptyMessage(type);
+			if(value == 1.0f){
 				post(new Runnable() {
 					@Override
 					public void run() {
+						mValueSaveTime[type] = 0;
 						create(type);
 						invalidate();
 					}
@@ -431,123 +417,17 @@ public class BatteryView extends View{
 		 * 根据限制的x具体，判断该移动的距离
 		 */
 		private void changeOrientation(float xLeftLimit, float xRightLimit) {
-			if(curX[type] <  (xLeftLimit + 0.5f)){
+			if(curX[type] <=  (xLeftLimit + 0.5f)){
                 isRight = true;
-            }else if(curX[type] > (xRightLimit - 0.5f)){
+            }else if(curX[type] >= (xRightLimit - 0.5f)){
                 isRight = false;
             }
-			/*if(new BigDecimal( curX[type]).compareTo(new BigDecimal(xLeftLimit)) == -1){
-				isRight = true;
-			}else if(new BigDecimal( curX[type]).compareTo(new BigDecimal(xRightLimit)) == 1){
-				isRight = false;
-			}*/
+
 			if(isRight){
                 curX[type] += mXMove[type];
             }else{
                 curX[type] -= mXMove[type];
             }
-		}
-	}
-
-	/**
-	 * 倒计时
-	 */
-	class TimeCount extends CountDownTimer {
-		private int type;
-		// 倒计时设置
-		public TimeCount(long millisInFuture, long countDownInterval, int type) {
-			super(millisInFuture, countDownInterval); // 参数依次为总时长,和计时的时间间隔
-			this.type = type;
-		}
-		@Override
-		public void onFinish() { // 计时完毕时触发
-			handler.sendEmptyMessage(type);
-		}
-
-		@Override
-		public void onTick(long millisUntilFinished) {
-			// 计时过程显示 五种模式
-			// 1、右 - 左 - 左 - 右 - 右
-			// 2、右 - 右 - 左 - 左 - 右
-			// 3、左 - 右 - 右 - 左 - 左
-			// 4、左 - 左 - 右 - 右 - 左
-			switch (type % 4) {
-			case 0:
-				if (millisUntilFinished > mTime[type] / 5 * 4) {
-					curX[type] += mXMove[type];
-				} else if (millisUntilFinished > mTime[type] / 5 * 3) {
-					curX[type] -= mXMove[type];
-				} else if (millisUntilFinished > mTime[type] / 5 * 2) {
-					curX[type] -= mXMove[type];
-					performDescending(type);
-				} else if (millisUntilFinished > mTime[type] / 5 * 1) {
-					curX[type] += mXMove[type];
-					performDescending(type);
-				} else if (millisUntilFinished > 0) {
-					curX[type] += mXMove[type];
-					performDescending(type);
-				}
-				curY[type] = mBatteryRect.bottom + mPapawUpPathSize - (mPapawUpPathSize * (1 - millisUntilFinished / (float) mTime[type]));
-				break;
-			case 1:
-				if (millisUntilFinished > mTime[type] / 5 * 4) {
-					curX[type] += mXMove[type];
-				} else if (millisUntilFinished > mTime[type] / 5 * 3) {
-					curX[type] += mXMove[type];
-				} else if (millisUntilFinished > mTime[type] / 5 * 2) {
-					curX[type] -= mXMove[type];
-					performDescending(type);
-				} else if (millisUntilFinished > mTime[type] / 5 * 1) {
-					curX[type] -= mXMove[type];
-					performDescending(type);
-				} else if (millisUntilFinished > 0) {
-					curX[type] += mXMove[type];
-					performDescending(type);
-				}
-				curY[type] = mBatteryRect.bottom + mPapawUpPathSize - (mPapawUpPathSize * (1 - millisUntilFinished / (float) mTime[type]));
-				break;
-			case 2:
-				if (millisUntilFinished > mTime[type] / 5 * 4) {
-					curX[type] -= mXMove[type];
-				} else if (millisUntilFinished > mTime[type] / 5 * 3) {
-					curX[type] += mXMove[type];
-				} else if (millisUntilFinished > mTime[type] / 5 * 2) {
-					curX[type] += mXMove[type];
-					performDescending(type);
-				} else if (millisUntilFinished > mTime[type] / 5 * 1) {
-					curX[type] -= mXMove[type];
-					performDescending(type);
-				} else if (millisUntilFinished > 0) {
-					curX[type] -= mXMove[type];
-					performDescending(type);
-				}
-				curY[type] = mBatteryRect.bottom + mPapawUpPathSize - (mPapawUpPathSize * (1 - millisUntilFinished / (float) mTime[type]));
-				break;
-			case 3:
-				if (millisUntilFinished > mTime[type] / 5 * 4) {
-					curX[type] -= mXMove[type];
-				} else if (millisUntilFinished > mTime[type] / 5 * 3) {
-					curX[type] -= mXMove[type];
-				} else if (millisUntilFinished > mTime[type] / 5 * 2) {
-					curX[type] += mXMove[type];
-					performDescending(type);
-				} else if (millisUntilFinished > mTime[type] / 5 * 1) {
-					curX[type] += mXMove[type];
-					performDescending(type);
-				} else if (millisUntilFinished > 0) {
-					curX[type] -= mXMove[type];
-					performDescending(type);
-				}
-				curY[type] = mBatteryRect.bottom + mPapawUpPathSize - (mPapawUpPathSize * (1 - millisUntilFinished / (float) mTime[type]));
-				break;
-			}
-			invalidate();
-		}
-
-		private void performDescending(int type) {
-			mAlpha[type] -= 3;
-			if(mAlpha[type] <= 0)
-				mAlpha[type] = 0;
 		}
 	}
 
@@ -558,4 +438,5 @@ public class BatteryView extends View{
 		final float scale = context.getResources().getDisplayMetrics().density;
 		return  (dpValue / 3.0f *  scale + 0.5f);
 	}
+
 }

@@ -38,6 +38,7 @@ public class MainActivity extends Activity {
 			mBatteryView.startAnim();
 		}else{
 			mBatteryView.setVisibility(View.GONE);
+			mBatteryView.stopAnim();
 		}
 	}
 
